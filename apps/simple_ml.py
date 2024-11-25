@@ -3,11 +3,14 @@
 import struct
 import gzip
 import numpy as np
+import math
 
 import sys
 
 sys.path.append("python/")
 import needle as ndl
+# sys.path.append("./")
+# import python.needle as ndl
 
 
 def parse_mnist(image_filesname, label_filename):
@@ -33,7 +36,15 @@ def parse_mnist(image_filesname, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    with gzip.open(image_filesname, 'rb') as f:
+        f.read(16) # 跳过前16个字节
+        file_content = f.read()
+        image_content = (np.frombuffer(file_content, dtype=np.uint8).astype(np.float32)/255).reshape(-1, 784)
+    with gzip.open(label_filename, 'rb') as f:
+        f.read(8) # 跳过前8个字节
+        file_content = f.read()
+        label_content = np.frombuffer(file_content, dtype=np.uint8)
+    return image_content, label_content
     ### END YOUR SOLUTION
 
 
@@ -54,9 +65,16 @@ def softmax_loss(Z, y_one_hot):
         Average softmax loss over the sample. (ndl.Tensor[np.float32])
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    batch_size = Z.shape[0]
+    log_sum_exp = ndl.log(ndl.summation(ndl.exp(Z), axes=(1,)))
+    correct_class_logits = ndl.summation(Z * y_one_hot, axes=(1,))
+    loss = ndl.summation(-correct_class_logits + log_sum_exp, axes=(0,))
+    return loss / batch_size
     ### END YOUR SOLUTION
 
+def normalize_softmax(x):
+    tmp = np.exp(x)
+    return tmp/ndl.summation(tmp, axis=1)
 
 def nn_epoch(X, y, W1, W2, lr=0.1, batch=100):
     """Run a single epoch of SGD for a two-layer neural network defined by the
@@ -83,7 +101,22 @@ def nn_epoch(X, y, W1, W2, lr=0.1, batch=100):
     """
 
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    n_batch = math.ceil(X.shape[0] / batch)
+    one_hot = np.eye(W2.shape[1])[y]
+    for i in range(n_batch):
+        X_batch = X[i*batch:(i+1)*batch]
+        one_hot_batch = one_hot[i*batch:(i+1)*batch]
+
+        X_tensor = ndl.Tensor(X_batch)
+        one_hot_tensor = ndl.Tensor(one_hot_batch)
+
+        Z = ndl.matmul(ndl.relu(ndl.matmul(X_tensor, W1)), W2)
+        loss = softmax_loss(Z, one_hot_tensor)
+        loss.backward()
+
+        W1 = (W1 - lr * W1.grad).detach()
+        W2 = (W2 - lr * W2.grad).detach()
+    return W1, W2
     ### END YOUR SOLUTION
 
 
