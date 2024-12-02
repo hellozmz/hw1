@@ -201,16 +201,15 @@ class BroadcastTo(TensorOp):
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
-        ### BEGIN YOUR SOLUTION
         input_shape = node.inputs[0].shape
-        output_shape = self.shape
-
-        axes = []
-        for i in range(len(output_shape)):
-            if i >= len(input_shape) or input_shape[i] == 1:
-                axes.append(i)
-
-        return summation(out_grad, axes=tuple(axes)).reshape(input_shape)
+        output_shape = out_grad.shape
+        grad = out_grad
+        for i in range(len(output_shape) - len(input_shape)):
+            grad = summation(grad, axes=0)
+        for i, dim in enumerate(input_shape):
+            if dim == 1 and self.shape[i]!=1:
+              grad = summation(grad, axes=i)
+        return reshape(grad, input_shape)
         ### END YOUR SOLUTION
 
 
